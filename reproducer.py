@@ -1,7 +1,6 @@
 import sys
 import argparse
 import csv
-import time
 from operator import itemgetter
 
 sys.path.insert(1, './verbose_converter/')
@@ -35,12 +34,12 @@ def convert_driver(prop_kind):
         'all': 'all',
     }.get(prop_kind)
     return driver
-    
+
+
 def cleanup(breakdown):
-    temp = ' '.join([str(elem) for i,elem in enumerate(breakdown)])
+    temp = ' '.join([str(elem) for elem in breakdown])
     parsed_breakdown = temp.split("'")[3]
     return parsed_breakdown.split("\\n")
-
 
 
 def parse_log(log):
@@ -61,7 +60,6 @@ def generate_benchdnn_input(log):
   return benchdnn_input
 
 
-
 def prepare_map(breakdown, prim_kind):
   operations = {}
   temp = breakdown.split(',')
@@ -73,7 +71,6 @@ def prepare_map(breakdown, prim_kind):
       operations.update({'time': float(temp[3])})
   
   return operations
-
 
   
 def prepare_list(breakdown, prim_kind = 'all'):
@@ -93,7 +90,6 @@ def prepare_list(breakdown, prim_kind = 'all'):
 
 def match_logs(a, b):
   matches = []
-    
   b_dict = {x['operation']: x for x in b}
 
   for item in a:
@@ -104,8 +100,7 @@ def match_logs(a, b):
         b_time = float(b_dict[key]['time'])
             
         delta = round((((a_time-b_time)/a_time) * 100), 4)
-        diff = round((a_time-b_time), 4)
-            
+        diff = round((a_time-b_time), 4)   
             
         curr_op = {'primitive':item['primitive'],
                    'operation':item['operation'],
@@ -114,11 +109,9 @@ def match_logs(a, b):
                    'log2_time':b_time,
                    'delta':delta,
                    'diff':diff}
-
         matches.append(curr_op)
       
       sorted_ops = sorted(matches, key=itemgetter('diff'))
-
   return sorted_ops
   
 
@@ -128,7 +121,6 @@ def output_benchdnn_inputs(lines, prim):
     for line in lines:
       output_file.write(line)
       
-     
 
 def generate_benchdnn_inputs(prim_keys, benchdnn_input, p_ops):
   for key in prim_keys:
@@ -161,29 +153,36 @@ def print_shape_analysis(sorted_ops):
     writer = csv.writer(csv_file)
     writer.writerow(header)
     print(dash)
-    print('{:<10s}{:^60s}{:^10s}{:^15s}{:^15s}{:^14s}{:^14s}'.format(header[0],header[1],header[2],header[3],header[4],header[5],header[6]))
+    print('{:<10s}{:^60s}{:^10s}{:^15s}{:^15s}{:^14s}{:^14s}'.format(header[0],
+                                                                     header[1],
+                                                                     header[2],
+                                                                     header[3],
+                                                                     header[4],
+                                                                     header[5],
+                                                                     header[6]))
     print(dash)
     
     for i in sorted_ops:
-      print('{:<10s}{:<60}{:^10s}{:^15s}{:^15s}{:^14s}{:^14s}'.format(str(i['primitive']), i['operation'],str(i['ncalls']),str(i['log1_time']) ,str(i['log2_time']) ,str(i['delta']) + "%",str(i['diff'])))
-      row = i.values()
-      writer.writerow(row)
-
+      print('{:<10s}{:<60}{:^10s}{:^15s}{:^15s}{:^14s}{:^14s}'.format(str(i['primitive']),
+                                                                       str(i['operation']),
+                                                                       str(i['ncalls']),
+                                                                       str(i['log1_time']),
+                                                                       str(i['log2_time']),
+                                                                       str(i['delta']) + "%",
+                                                                       str(i['diff'])))
+      writer.writerow(i.values())
 
 
 def parse_args():
     parser=argparse.ArgumentParser(description=" ")
-    parser.add_argument("-t", "--threshold", default="0.0")
-    parser.add_argument("-m", "--max")
-    parser.add_argument("-p", "--primitive_kind", default="all")
     parser.add_argument("log1")
     parser.add_argument("log2")
+    parser.add_argument("-t", "--threshold", default="0.0")
+    parser.add_argument("-m", "--max", default = -1)
+    parser.add_argument("-p", "--primitive_kind", default="all")
     
-    parser.add_argument('-g', '--generate',
-                    action='store_true')
-    parser.add_argument('-o', '--output',
-                    action='store_true')
-                    
+    parser.add_argument('-g', '--generate', action='store_true')
+    parser.add_argument('-o', '--output', action='store_true')   
                     
     args=parser.parse_args()
     return args
@@ -195,24 +194,23 @@ def main():
     
     log_breakdown1 = parse_log(inputs.log1)
     log_breakdown2 = parse_log(inputs.log2)
-
     a = prepare_list(log_breakdown1, inputs.primitive_kind);
     b = prepare_list(log_breakdown2, inputs.primitive_kind)
     
     sorted_ops = match_logs(a, b)
     ops = []
-    
-    for counter, i in enumerate(sorted_ops):
-        if((i['delta'] < (1 *(float(inputs.threshold))))):
-            ops.append(i)
+    for i, op in enumerate(sorted_ops):
+        if((op['delta'] < (1 *(float(inputs.threshold))))):
+            ops.append(op)
+        
+        if(i == int(inputs.max)):
+          break
       
-    
     if(len(ops) > 0):
       print_shape_analysis(ops)
     
     print("Total matches: " + str(len(sorted_ops)) + " out of " + str(len(a)))
-    
-    
+    print("Total operations found with " + str(inputs.threshold) + "% perf regression or more: " + str(len(ops)))
     
     if(inputs.generate): 
       benchdnn_input = generate_benchdnn_input(inputs.log2)
@@ -222,17 +220,11 @@ def main():
         if(prim == "all"):
           ops_prims = [str(elem['primitive']) for elem in ops]
           prim_keys = list(set(benchdnn_input[1].keys()) & set(ops_prims))
-      
         else:
           prim_keys = [prim]
-        
         generate_benchdnn_inputs(prim_keys, benchdnn_input, ops)
-        
-      
 
 
 if __name__ == '__main__':
-    start_time = time.time()
     main()
-    print("--- %s seconds ---" % (time.time() - start_time))
 

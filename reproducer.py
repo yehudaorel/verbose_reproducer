@@ -106,6 +106,33 @@ def match_logs(a, b):
       
       sorted_ops = sorted(matches, key=itemgetter('diff'))
   return sorted_ops
+  
+
+def generate_benchdnn_inputs(prim_kind, p_ops, p_ops_ncalls):
+  prim_type = convert_driver(inputs.primitive_kind)
+      
+  benchdnn_input = generate_benchdnn_input(inputs.log2)
+  benchdnn_file_name = 'benchdnn_inputs.' + str(prim_type)
+  benchdnn_file = open(benchdnn_file_name, 'w')
+      
+  lines = benchdnn_input[1][prim_type]
+  plines = lines.split("\n")
+      
+  for line in plines:
+    temp_line = line.split(" ")
+    for i in range(len(p_ops)):
+        if p_ops[i] in temp_line[len(temp_line) -1]:
+          fixed_time = "--fix-times-per-prb=" + str(p_ops_ncalls[i])
+          temp_line.insert(2, fixed_time)
+          curr_line = " ".join(str(x) for x in temp_line)
+          curr_line = curr_line + "\n"
+          benchdnn_file.write(curr_line)
+          pass
+            
+  benchdnn_file.close()
+    
+
+
 
 
 def parse_args():
@@ -157,28 +184,7 @@ def main():
     print("Total matches: " + str(len(sorted_ops)) + " out of " + str(len(a)))
     
     if(inputs.generate):
-      prim_type = convert_driver(inputs.primitive_kind)
-      
-      benchdnn_input = generate_benchdnn_input(inputs.log2)
-      benchdnn_file_name = 'benchdnn_inputs.' + str(prim_type)
-      benchdnn_file = open(benchdnn_file_name, 'w')
-      
-      lines = benchdnn_input[1][prim_type]
-      plines = lines.split("\n")
-      
-      for line in plines:
-        temp_line = line.split(" ")
-        for i in range(len(problematic_ops)):
-          if problematic_ops[i] in temp_line[len(temp_line) -1]:
-            fixed_time = "--fix-times-per-prb=" + str(problematic_ops_calls[i])
-            temp_line.insert(2, fixed_time)
-            curr_line = " ".join(str(x) for x in temp_line)
-            curr_line = curr_line + "\n"
-            benchdnn_file.write(curr_line)
-            pass
-            
-      benchdnn_file.close()
-              
+      generate_benchdnn_inputs(inputs.primitive_kind, problematic_ops, problematic_ops_calls)
 
 if __name__ == '__main__':
     main()

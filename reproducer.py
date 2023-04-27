@@ -1,5 +1,7 @@
 import sys
 import argparse
+import csv
+import time
 from operator import itemgetter
 
 sys.path.insert(1, './verbose_converter/')
@@ -30,6 +32,7 @@ def convert_driver(prop_kind):
         'softmax': 'softmax',
         'softmax_v2': 'softmax',
         'sum': 'sum',
+        'all': 'all',
     }.get(prop_kind)
     return driver
     
@@ -63,15 +66,15 @@ def prepare_map(breakdown, prim_kind):
   operations = {}
   temp = breakdown.split(',')
   
-  if(prim_kind == 'all' or temp[0] == prim_kind):
-    if(float(temp[3]) > 0.0):       
+  if((prim_kind == 'all' or temp[0] == prim_kind) and (float(temp[3]) > 0.0)):       
       operations.update({'operation': temp[1]})
-      operations.update({'primitive': temp[0]})
+      operations.update({'primitive': convert_driver(temp[0])})
       operations.update({'ncalls': float(temp[2])})
       operations.update({'time': float(temp[3])})
   
   return operations
-  
+
+
   
 def prepare_list(breakdown, prim_kind = 'all'):
   map_list = []
@@ -86,10 +89,13 @@ def prepare_list(breakdown, prim_kind = 'all'):
 
   return map_list
 
+
+
 def match_logs(a, b):
   matches = []
     
   b_dict = {x['operation']: x for x in b}
+
   for item in a:
     if item['operation'] in b_dict:
       key = item['operation']
@@ -101,35 +107,72 @@ def match_logs(a, b):
         diff = (a_time-b_time)
             
             
-        curr_op = {'primitive':item['primitive'], 'operation':item['operation'],'ncalls':item['ncalls'], 'log1_time':a_time, 'log2_time':b_time,'delta':delta,'diff':diff}
+        curr_op = {'primitive':item['primitive'],
+                   'operation':item['operation'],
+                   'ncalls':item['ncalls'],
+                   'log1_time':a_time,
+                   'log2_time':b_time,
+                   'delta':delta,
+                   'diff':diff}
+
         matches.append(curr_op)
       
       sorted_ops = sorted(matches, key=itemgetter('diff'))
+
   return sorted_ops
   
 
-def generate_benchdnn_inputs(prim_kind, p_ops, p_ops_ncalls):
-  prim_type = convert_driver(inputs.primitive_kind)
+def output_benchdnn_inputs(lines, prim):
+  benchdnn_file_name = 'benchdnn_inputs.' + str(prim)
+  with open(benchdnn_file_name, 'w', encoding='UTF8') as output_file:
+    for line in lines:
+      output_file.write(line)
       
-  benchdnn_input = generate_benchdnn_input(inputs.log2)
-  benchdnn_file_name = 'benchdnn_inputs.' + str(prim_type)
-  benchdnn_file = open(benchdnn_file_name, 'w')
-      
-  lines = benchdnn_input[1][prim_type]
-  plines = lines.split("\n")
-      
-  for line in plines:
-    temp_line = line.split(" ")
-    for i in range(len(p_ops)):
-        if p_ops[i] in temp_line[len(temp_line) -1]:
-          fixed_time = "--fix-times-per-prb=" + str(p_ops_ncalls[i])
+     
+
+
+def generate_benchdnn_inputs(prim_kind, benchdnn_input, p_ops):
+  
+  if(prim_kind == "all"):
+    p_ops_prims = [str(elem['primitive']) for i,elem in enumerate(p_ops)]
+    prim_intersection = list(set(benchdnn_input[1].keys()) & set(p_ops_prims))
+    prim_keys = benchdnn_input[1].keys()
+  else:
+    prim_keys = [prim_kind]
+  
+
+  for key in prim_keys:
+    
+    lines = benchdnn_input[1][key]
+    plines = lines.split("\n")
+    input_lines = []
+    
+    for line in plines:
+      temp_line = line.split(" ")
+      for y, i in enumerate(p_ops):
+        if str(i['operation']) == temp_line[len(temp_line) -1]:
+          fixed_time = "--fix-times-per-prb=" + str(i['ncalls'])
           temp_line.insert(2, fixed_time)
           curr_line = " ".join(str(x) for x in temp_line)
           curr_line = curr_line + "\n"
-          benchdnn_file.write(curr_line)
+          
+          input_lines.append(curr_line)
+    
+          del p_ops[y]
           pass
-            
-  benchdnn_file.close()
+          
+    if(len(input_lines) > 0):
+      output_benchdnn_inputs(input_lines, key)
+  
+  
+
+def print_shape_analysis(sorted_ops, is_output):
+  header = ["Primitive" , "Shape" , "NCalls" , "Log1 time(ms)" , "Log2 time(ms)" , "Delta %" , "Difference"]
+  
+  with open('shape_analysis.csv', 'w', encoding='UTF8') as csv_file:
+    writer = csv.writer(csv_file)
+    writer.writerow(header)
+    
     
 
 
@@ -137,8 +180,8 @@ def generate_benchdnn_inputs(prim_kind, p_ops, p_ops_ncalls):
 
 def parse_args():
     parser=argparse.ArgumentParser(description=" ")
-    parser.add_argument("-t", "--threshold", default="9999999")
-    parser.add_argument("-m", "--max", default="0")
+    parser.add_argument("-t", "--threshold", default="0.0")
+    parser.add_argument("-m", "--max")
     parser.add_argument("-p", "--primitive_kind", default="all")
     parser.add_argument("log1")
     parser.add_argument("log2")
@@ -160,31 +203,39 @@ def main():
     log_breakdown1 = parse_log(inputs.log1)
     log_breakdown2 = parse_log(inputs.log2)
     
+    print(convert_driver("conv"))
+    
 
     a = prepare_list(log_breakdown1, inputs.primitive_kind);
     b = prepare_list(log_breakdown2, inputs.primitive_kind)
     
     sorted_ops = match_logs(a, b)
     
-    problematic_ops = []
-    problematic_ops_calls = []
+    ops = []
     
-    print("Primitive: " + " | Shape: " + " | Log1 time(ms): "  + " | Log2 time(ms): "  + " | Delta %: "  + " | Difference: " )
     
     counter = 0
     for i in sorted_ops:
-        if((i['delta'] <= (-1 *(float(inputs.threshold))) ) and counter <= int(inputs.max)):
-            problematic_ops.append(i['operation'])
-            problematic_ops_calls.append(int(i['ncalls']))
+        if((i['delta'] < (1 *(float(inputs.threshold))))):
             counter = counter +1
-          
-        print(str(i['primitive']) + " | " + i['operation'] + " | " + str(i['log1_time']) + " | " + str(i['log2_time']) + " | " + str(i['delta']) + " | " + str(i['diff']))
+            ops.append(i)
+            print(str(i['primitive']) + " | " + i['operation'] + " | " + str(i['log1_time']) + " | " + str(i['log2_time']) + " | " + str(i['delta']) + " | " + str(i['diff']))
       
       
     print("Total matches: " + str(len(sorted_ops)) + " out of " + str(len(a)))
     
     if(inputs.generate):
-      generate_benchdnn_inputs(inputs.primitive_kind, problematic_ops, problematic_ops_calls)
+      benchdnn_input = generate_benchdnn_input(inputs.log2)
+      prim = convert_driver(inputs.primitive_kind)
+      if(prim != None):
+        generate_benchdnn_inputs(prim, benchdnn_input, ops)
+        
+      
+
+
 
 if __name__ == '__main__':
+    start_time = time.time()
     main()
+    print("--- %s seconds ---" % (time.time() - start_time))
+

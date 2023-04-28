@@ -46,11 +46,15 @@ verbose_reproducer/
   ## Example runs
   
   ### Default
-  By default, the script outputs 
- > Note: by default the script only outputs operations with delta of less than 0 (i.e with perf regression), ordered by difference.
+By default the script outputs operations for ones with delta of less than 0 (i.e with perf regression), ordered by difference.
+>  $$ Difference(ms) = ( Time_1 - Time_2 )$$
+
+
+>  $$Delta = (Difference(ms) / Time_1) * 100$$
+
  
 ``` sh
- python3 reproducer.py log1.txt log2.txt                                           
+ $ python3 reproducer.py log1.txt log2.txt                                           
 ```
 
 ``` sh
@@ -92,10 +96,10 @@ verbose_reproducer/
 ```
 ### Threshold and primitive type
 
-In this example we specify which primitive to parse (convolution) and the minimum amount of regression to output (t < -20)
+In this example we specify which primitive to parse (convolution in this case) and the minimum amount of regression to output (t < -20, only shapes with 20 percent performance regression or more will output):
 
 ``` sh
- python3 reproducer.py log1.txt log2.txt --primitive convolution -t -20                                           
+ $ python3 reproducer.py log1.txt log2.txt --primitive convolution -t -20                                           
 ```
 
 ``` sh
@@ -126,7 +130,7 @@ Total operations found with -20% perf regression or more: 679
 You can also limit the amount of operations by setting the paramater --max or -m:
 
 ``` sh
- python3 reproducer.py log1.txt log2.txt --primitive convolution -t -20 -m 3                                          
+ $ python3 reproducer.py log1.txt log2.txt --primitive convolution -t -20 -m 3                                          
 ```
 
 ``` sh
@@ -143,7 +147,7 @@ You can also limit the amount of operations by setting the paramater --max or -m
 ### Benchdnn input generetor 
 By using the *--generate* or *-g* argument, the script will generate benchDNN input files corrosponding to the command line output.
 ``` sh
- python3 reproducer.py log1.txt log2.txt --primitive concat -t -30 --generate                                       
+ $ python3 reproducer.py log1.txt log2.txt --primitive concat -t -30 --generate                                       
 ```
 
 

@@ -25,6 +25,7 @@ python3 reproducer.py [-h] LOG1 LOG2 [-p PRIMITIVE] [-t THRESHOLD]
   
   
 ### Directory tree
+``` sh
 verbose_reproducer/
 ├── README.md
 ├── reproducer.py
@@ -42,7 +43,7 @@ verbose_reproducer/
     │   └── writer.py
     ├── tests   
     └── verbose_converter.py
-
+```
   ## Example runs
   
   ### Default

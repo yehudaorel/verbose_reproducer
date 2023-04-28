@@ -24,9 +24,29 @@ python3 reproducer.py [-h] LOG1 LOG2 [-p PRIMITIVE] [-t THRESHOLD]
   - `{--impl} ` -- shows operation kernel implimentation in breakdown.
   
   
+### Directory tree
+verbose_reproducer/
+├── README.md
+├── reproducer.py
+├── shape_analysis.csv
+├── log1.txt
+├── log2.txt
+└── verbose_converter
+    │ 
+    ├── README.md
+    ├── src
+    │   ├── benchdnn_generator.py
+    │   ├── breakdown_generator.py
+    │   ├── dnnl_parser.py
+    │   ├── utils.py
+    │   └── writer.py
+    ├── tests   
+    └── verbose_converter.py
+
   ## Example runs
   
-  ### Output comparison of matching operatations & shapes in both logs
+  ### Default
+  By default, the script outputs 
  > Note: by default the script only outputs operations with delta of less than 0 (i.e with perf regression), ordered by difference.
  
 ``` sh

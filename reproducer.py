@@ -51,7 +51,7 @@ def parse_log(log):
         "generate",
         "breakdown",
         1,
-        agg_keys=["prim_kind", "shapes"]
+        agg_keys=["prim_kind", "shapes", "impl"]
     )
 
     log_breakdown = cleanup(output)
@@ -82,8 +82,9 @@ def prepare_map(breakdown, prim_kind):
     if (prim_kind == "all" or temp[0] == prim_kind) and (float(temp[3]) > 0.0):
         operations.update({"operation": temp[1]})
         operations.update({"primitive": convert_driver(temp[0])})
-        operations.update({"ncalls": float(temp[2])})
-        operations.update({"time": float(temp[3])})
+        operations.update({"impl": temp[2]})
+        operations.update({"ncalls": float(temp[3])})
+        operations.update({"time": float(temp[4])})
 
     return operations
 
@@ -124,6 +125,8 @@ def match_logs(a, b):
                     "log2_time": b_time,
                     "delta": delta,
                     "diff": diff,
+                    "log1_impl": item["impl"],
+                    "log2_impl": b_dict[key]["impl"],
                 }
                 matches.append(curr_op)
 
@@ -160,7 +163,7 @@ def generate_benchdnn_inputs(prim_keys, benchdnn_input, p_ops):
             output_benchdnn_inputs(input_lines, key)
 
 
-def print_shape_analysis(sorted_ops):
+def print_shape_analysis(sorted_ops, flags):
     header = [
         "Primitive",
         "Shape",
@@ -168,39 +171,74 @@ def print_shape_analysis(sorted_ops):
         "Log1 time(ms)",
         "Log2 time(ms)",
         "Delta",
-        "Difference",
+        "Difference(ms)",
     ]
+    
+    dash = "-" * 150
+    
+    print(dash)
+    
+    if 'show_impl' in flags:
+        header.append("Log1 Impl")
+        header.append("Log2 Impl")
+        print("{:<10s}{:^63s}{:^12s}{:^16s}{:^16s}{:^14s}{:^14s}{:^22s}{:^20s}".format(
+              header[0],
+              header[1],
+              header[2],
+              header[3],
+              header[4],
+              header[5],
+              header[6],
+              header[7],
+              header[8],
+              )
+            )
+    else:
+        print("{:<10s}{:^64s}{:^12s}{:^16s}{:^16s}{:^14s}{:^14s}".format(
+              header[0],
+              header[1],
+              header[2],
+              header[3],
+              header[4],
+              header[5],
+              header[6],
+              )
+            )
+    print(dash)
 
     with open("shape_analysis.csv", "w", encoding="UTF8") as csv_file:
         dash = "-" * 136
         writer = csv.writer(csv_file)
         writer.writerow(header)
-        print(dash)
-        print(
-            "{:<10s}{:^60s}{:^10s}{:^15s}{:^15s}{:^14s}{:^14s}".format(
-                header[0],
-                header[1],
-                header[2],
-                header[3],
-                header[4],
-                header[5],
-                header[6],
-            )
-        )
-        print(dash)
-
+    
+    
         for i in sorted_ops:
-            print(
-                "{:<10s}{:<60}{:^10s}{:^15s}{:^15s}{:^14s}{:^14s}".format(
-                    str(i["primitive"]),
-                    str(i["operation"]),
-                    str(i["ncalls"]),
-                    str(i["log1_time"]),
-                    str(i["log2_time"]),
-                    str(i["delta"]) + "%",
-                    str(i["diff"]),
+            if 'show_impl' in flags:
+                print("{:<10s}{:<65}{:<12s}{:<16s}{:<16s}{:<14s}{:<14s}{:<22s}{:^22s}".format(
+                        str(i["primitive"]),
+                        str(i["operation"]),
+                        str(i["ncalls"]),
+                        str(i["log1_time"]),
+                        str(i["log2_time"]),
+                        str(i["delta"]) + "%",
+                        str(i["diff"]),
+                        str(i["log1_impl"]),
+                        str(i["log2_impl"]),
+                    )
                 )
-            )
+            else:
+                i.pop("log1_impl")
+                i.pop("log2_impl")
+                print("{:<8s}{:<65}{:^12s}{:<16s}{:<16s}{:<14s}{:<14s}".format(
+                        str(i["primitive"]),
+                        str(i["operation"]),
+                        str(i["ncalls"]),
+                        str(i["log1_time"]),
+                        str(i["log2_time"]),
+                        str(i["delta"]) + "%",
+                        str(i["diff"]),
+                    )
+                )
             writer.writerow(i.values())
 
 
@@ -214,6 +252,7 @@ def parse_args():
 
     parser.add_argument("-g", "--generate", action="store_true")
     parser.add_argument("-o", "--output", action="store_true")
+    parser.add_argument("--impl", action="store_true")
 
     args = parser.parse_args()
     return args
@@ -221,6 +260,11 @@ def parse_args():
 
 def main():
     inputs = parse_args()
+    
+    flags = []
+    
+    if inputs.impl:
+      flags.append('show_impl')
 
     log_breakdown1 = parse_log(inputs.log1)
     log_breakdown2 = parse_log(inputs.log2)
@@ -233,13 +277,13 @@ def main():
         if op["delta"] < (1 * (float(inputs.threshold))):
             ops.append(op)
 
-        if i == int(inputs.max):
+        if len(ops) >= int(inputs.max) and int(inputs.max) != -1:
             break
 
     if len(ops) > 0:
-        print_shape_analysis(ops)
+        print_shape_analysis(ops, flags)
 
-    print("Total matches: " + str(len(sorted_ops)) + " out of " + str(len(a)))
+    print("Total matches: " + str(len(sorted_ops)) + " out of " + str(max(len(a),len(b))))
     print(
         "Total operations found with "
         + str(inputs.threshold)

@@ -1,13 +1,13 @@
 # Verbose log reproducer
 
-The purpose of this tool is to compare two oneDNN logs by primitive type and shape. 
-Verbose log reproducer is a script building on top of the verbose_converter script.
+The purpose of this tool is to compare two oneDNN logs by primitive type and shape and order them by most-to-least regression. 
+Verbose log reproducer is a script building on top of the verbose_converter script, the verbose_converter tool provided in this repo is fetched from oneDNN v2.7.3
 
 ## Requirements
  - Python 3.7
 
 ## Usage
-### Option 1: call from command line
+### Call from command line
 ``` sh
 python3 reproducer.py [-h] LOG1 LOG2 [-p PRIMITIVE] [-t THRESHOLD]
                             [-g] [-o] [-m MAX]
@@ -19,8 +19,8 @@ python3 reproducer.py [-h] LOG1 LOG2 [-p PRIMITIVE] [-t THRESHOLD]
   - `{LOG2} STRING` -- Second verbose log file.
   - `{-p,--primitive} STRING` -- type of primitive. Default is `all`.
   - `{-t,--threshold} FLOAT` -- set minimum performance regression % to output. Default is `0.0`.
-  - `{-g,--generate}` -- if passed, benchdnn reproducer file will be genereated.
   - `{-m,--max} INT` -- shows N top results. no limit by default.
+  - `{-g,--generate}` -- if passed, benchdnn reproducer file will be genereated.
   - `{--impl} ` -- shows operation kernel implimentation in breakdown.
   
   
@@ -77,7 +77,7 @@ verbose_reproducer/
  Total operations found with 0.0% perf regression or more: 4890
 ```
  
-By default, a csv file will be generated corrospoding to the information outputed to console (shape_analysis.csv).
+By default, a csv file will be generated corrospoding to the information outputed to command line (shape_analysis.csv).
 
 ``` sh
 verbose_reproducer/
@@ -141,9 +141,9 @@ You can also limit the amount of operations by setting the paramater --max or -m
 ```
 
 ### Benchdnn input generetor 
-By using the *--generate* or *-g* argument, the script will generate benchDNN input files corrosponding to the console output.
+By using the *--generate* or *-g* argument, the script will generate benchDNN input files corrosponding to the command line output.
 ``` sh
- python3 reproducer.py log1.txt log2.txt --primitive concat -t -30                                        
+ python3 reproducer.py log1.txt log2.txt --primitive concat -t -30 --generate                                       
 ```
 
 
@@ -166,4 +166,5 @@ verbose_reproducer/
 
 
 ## Contact
+
 Orel Yehuda, orel.yehuda@intel.com

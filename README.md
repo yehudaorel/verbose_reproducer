@@ -24,12 +24,11 @@ python3 reproducer.py [-h] LOG1 LOG2 [-p PRIMITIVE] [-t THRESHOLD]
   - `{--impl} ` -- shows operation kernel implimentation in breakdown.
   
   
-### Directory tree
+### Directory tree (Pre-run)
 ``` sh
 verbose_reproducer/
 ├── README.md
 ├── reproducer.py
-├── shape_analysis.csv
 ├── log1.txt
 ├── log2.txt
 └── verbose_converter
@@ -77,7 +76,20 @@ verbose_reproducer/
  Total matches: 6425 out of 6425
  Total operations found with 0.0% perf regression or more: 4890
 ```
-  
+ 
+By default, a csv file will be generated corrospoding to the information outputed to console (shape_analysis.csv).
+
+``` sh
+verbose_reproducer/
+├── README.md
+├── reproducer.py
+├────── shape_analysis.csv  <--------
+├── log1.txt
+├── log2.txt
+└── verbose_converter
+    │ 
+    .
+```
 ### Threshold and primitive type
 
 In this example we specify which primitive to parse (convolution) and the minimum amount of regression to output (t < -20)
@@ -127,4 +139,29 @@ You can also limit the amount of operations by setting the paramater --max or -m
  Total matches: 4908 out of 4908
  Total operations found with -20% perf regression or more: 3
 ```
+
+### Benchdnn input generetor 
+By using the *--generate* or *-g* argument, the script will generate benchDNN input files corrosponding to the console output.
+``` sh
+ python3 reproducer.py log1.txt log2.txt --primitive concat -t -30                                        
+```
+
+
+``` sh
+verbose_reproducer/
+├── README.md
+├── reproducer.py
+├──── benchdnn_inputs.conv  <--------
+├──── benchdnn_inputs.pool  <--------
+├──── benchdnn_inputs.reorder  <--------
+├──── benchdnn_inputs.softmax  <--------
+├── shape_analysis.csv 
+├── log1.txt
+├── log2.txt
+└── verbose_converter
+    │ 
+    .
+```
+
+
 

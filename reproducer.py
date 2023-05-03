@@ -107,10 +107,11 @@ def match_logs(a, b):
     matches = []
     b_dict = {x["operation"]: x for x in b}
 
+    ops = []
     for item in a:
         if item["operation"] in b_dict:
             key = item["operation"]
-            if item["ncalls"] == b_dict[key]["ncalls"]:
+            if item["ncalls"] == b_dict[key]["ncalls"] or True:
                 a_time = float(item["time"])
                 b_time = float(b_dict[key]["time"])
 
@@ -130,8 +131,8 @@ def match_logs(a, b):
                 }
                 matches.append(curr_op)
 
-            sorted_ops = sorted(matches, key=itemgetter("diff"))
-    return sorted_ops
+            ops = sorted(matches, key=itemgetter("diff"))
+    return ops 
 
 
 def output_benchdnn_inputs(lines, prim):
@@ -268,6 +269,7 @@ def main():
 
     log_breakdown1 = parse_log(inputs.log1)
     log_breakdown2 = parse_log(inputs.log2)
+
     a = prepare_list(log_breakdown1, inputs.primitive_kind)
     b = prepare_list(log_breakdown2, inputs.primitive_kind)
 
@@ -280,8 +282,13 @@ def main():
         if len(ops) >= int(inputs.max) and int(inputs.max) != -1:
             break
 
+
     if len(ops) > 0:
         print_shape_analysis(ops, flags)
+
+    else:
+        print("no matches found")
+        return
 
     print("Total matches: " + str(len(sorted_ops)) + " out of " + str(max(len(a),len(b))))
     print(
